@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>Iron Log &mdash; PPL Tracker</title>
+<meta name="description" content="A 3-day Push/Pull/Legs tracker built on progressive overload, RIR, and deload cycles." />
+<meta name="theme-color" content="#0E0F12" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Iron Log" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ ONBOARDING ============ -->
+  <section id="view-onboarding" class="view">
+    <div class="onboard-wrap">
+      <p class="eyebrow">Welcome</p>
+      <h1 class="display-xl">IRON LOG</h1>
+      <p class="onboard-sub">A 3-day Push / Pull / Legs program built for your home gym setup. Before week one, log your current working weights so the app can track progress from a real baseline.</p>
+
+      <div class="onboard-card">
+        <h2 class="section-title">Starting weights <span class="unit-tag">lbs</span></h2>
+        <p class="hint">Enter what you'd comfortably lift for the listed rep range today, leaving 1&ndash;2 reps in the tank. Skip any you're unsure of &mdash; you can adjust after set one.</p>
+        <div id="onboard-exercise-list" class="onboard-list"></div>
+      </div>
+
+      <button id="btn-start-program" class="btn btn-primary btn-block">Start Mesocycle &mdash; Week 1</button>
+    </div>
+  </section>
+
+  <!-- ============ HOME ============ -->
+  <section id="view-home" class="view">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Iron Log</p>
+        <h1 class="display-lg">Today</h1>
+      </div>
+      <button id="btn-open-settings" class="icon-btn" aria-label="Settings">&#9881;</button>
+    </header>
+
+    <div class="meso-ring-card">
+      <div class="meso-ring" id="meso-ring">
+        <svg viewBox="0 0 120 120" id="meso-ring-svg"></svg>
+        <div class="meso-ring-center">
+          <span class="meso-week-num" id="meso-week-num">1</span>
+          <span class="meso-week-label">WEEK</span>
+        </div>
+      </div>
+      <div class="meso-ring-info">
+        <p class="meso-status" id="meso-status">Week 1 of 6 &middot; Overload</p>
+        <p class="meso-substatus" id="meso-substatus">5 weeks of progressive overload, then a deload.</p>
+      </div>
+    </div>
+
+    <div class="next-workout-card">
+      <p class="eyebrow" id="next-day-eyebrow">Next session</p>
+      <h2 class="display-md" id="next-day-name">Push</h2>
+      <p class="next-day-sub" id="next-day-sub">Chest &middot; Shoulders &middot; Triceps</p>
+      <div class="next-day-meta" id="next-day-meta"></div>
+      <button id="btn-start-workout" class="btn btn-primary btn-block">Start Workout</button>
+    </div>
+
+    <div class="quick-stats" id="quick-stats"></div>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-view="home"><span class="nav-ico">&#8962;</span>Home</button>
+      <button class="nav-btn" data-view="history"><span class="nav-ico">&#128202;</span>History</button>
+      <button class="nav-btn" data-view="about"><span class="nav-ico">&#9432;</span>Guide</button>
+      <button class="nav-btn" data-view="settings"><span class="nav-ico">&#9881;</span>Settings</button>
+    </nav>
+  </section>
+
+  <!-- ============ WORKOUT (ACTIVE SESSION) ============ -->
+  <section id="view-workout" class="view">
+    <header class="workout-header">
+      <button id="btn-exit-workout" class="icon-btn" aria-label="Exit workout">&#10005;</button>
+      <div class="workout-header-title">
+        <p class="eyebrow" id="workout-day-label">Push &middot; Week 1</p>
+        <h1 class="display-md" id="workout-day-name">Push Day</h1>
+      </div>
+      <div class="workout-progress-pill" id="workout-progress-pill">0/0 sets</div>
+    </header>
+
+    <div id="exercise-list" class="exercise-list"></div>
+
+    <div class="workout-footer">
+      <button id="btn-finish-workout" class="btn btn-primary btn-block">Finish Workout</button>
+    </div>
+  </section>
+
+  <!-- ============ HISTORY ============ -->
+  <section id="view-history" class="view">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Progress</p>
+        <h1 class="display-lg">History</h1>
+      </div>
+      <button class="icon-btn nav-back" data-back="home" aria-label="Back">&#8592;</button>
+    </header>
+
+    <div class="history-filter" id="history-exercise-filter"></div>
+    <div id="history-chart-wrap" class="chart-wrap"></div>
+    <div id="history-sessions" class="history-sessions"></div>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn" data-view="home"><span class="nav-ico">&#8962;</span>Home</button>
+      <button class="nav-btn active" data-view="history"><span class="nav-ico">&#128202;</span>History</button>
+      <button class="nav-btn" data-view="about"><span class="nav-ico">&#9432;</span>Guide</button>
+      <button class="nav-btn" data-view="settings"><span class="nav-ico">&#9881;</span>Settings</button>
+    </nav>
+  </section>
+
+  <!-- ============ ABOUT / GUIDE ============ -->
+  <section id="view-about" class="view">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">How this works</p>
+        <h1 class="display-lg">Guide</h1>
+      </div>
+      <button class="icon-btn nav-back" data-back="home" aria-label="Back">&#8592;</button>
+    </header>
+
+    <div class="about-content">
+      <div class="about-card">
+        <h3 class="about-h">Progressive overload</h3>
+        <p>The goal every session is to do slightly more than last time &mdash; an extra rep, or the same reps with more weight. Each exercise has a rep range (like 8&ndash;10). Add reps each week until every set hits the top of the range, then add weight and drop back to the bottom of the range. This is the main driver of muscle and strength gains over time.</p>
+      </div>
+      <div class="about-card">
+        <h3 class="about-h">RIR &mdash; Reps in Reserve</h3>
+        <p>RIR is how many more reps you could have done before failure. 2 RIR means you stopped with 2 good reps left in the tank. Most sets here target 1&ndash;2 RIR &mdash; hard, but not grinding, all-out sets. Isolation work is often pushed closer to 0&ndash;1 RIR since the injury risk is lower.</p>
+      </div>
+      <div class="about-card">
+        <h3 class="about-h">Deload weeks</h3>
+        <p>Every 6th week, volume is cut roughly in half and target RIR jumps to 4&ndash;5 (noticeably easier). This lets accumulated fatigue dissipate so the next block starts fresh, rather than running until performance stalls or an injury forces a break.</p>
+      </div>
+      <div class="about-card">
+        <h3 class="about-h">The split</h3>
+        <p>Push, Pull, and Legs each get trained once per week. Sessions run roughly 45&ndash;60 minutes: compound lifts first while you're freshest (lower reps, longer rest), isolation work after to finish off each muscle group (higher reps, shorter rest).</p>
+      </div>
+      <div class="about-card">
+        <h3 class="about-h">Logging a set</h3>
+        <p>Enter the weight and reps you actually did, and how many reps you had left (RIR), then mark the set complete &mdash; the rest timer starts automatically. Your last performance on each exercise is shown for reference so you always know what you're trying to beat.</p>
+      </div>
+    </div>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn" data-view="home"><span class="nav-ico">&#8962;</span>Home</button>
+      <button class="nav-btn" data-view="history"><span class="nav-ico">&#128202;</span>History</button>
+      <button class="nav-btn active" data-view="about"><span class="nav-ico">&#9432;</span>Guide</button>
+      <button class="nav-btn" data-view="settings"><span class="nav-ico">&#9881;</span>Settings</button>
+    </nav>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section id="view-settings" class="view">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Configure</p>
+        <h1 class="display-lg">Settings</h1>
+      </div>
+      <button class="icon-btn nav-back" data-back="home" aria-label="Back">&#8592;</button>
+    </header>
+
+    <div class="settings-card">
+      <h2 class="section-title">Mesocycle position</h2>
+      <p class="hint">Jump to a different week if you need to correct the tracker.</p>
+      <div class="week-picker" id="week-picker"></div>
+    </div>
+
+    <div class="settings-card">
+      <h2 class="section-title">Working weights</h2>
+      <p class="hint">Edit your current weight for any exercise &mdash; useful when starting a new mesocycle.</p>
+      <div id="settings-exercise-list" class="onboard-list"></div>
+    </div>
+
+    <div class="settings-card danger-zone">
+      <h2 class="section-title">Reset</h2>
+      <p class="hint">Erases all logged history and starting weights. This can't be undone.</p>
+      <button id="btn-reset-all" class="btn btn-danger btn-block">Reset all data</button>
+    </div>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn" data-view="home"><span class="nav-ico">&#8962;</span>Home</button>
+      <button class="nav-btn" data-view="history"><span class="nav-ico">&#128202;</span>History</button>
+      <button class="nav-btn" data-view="about"><span class="nav-ico">&#9432;</span>Guide</button>
+      <button class="nav-btn active" data-view="settings"><span class="nav-ico">&#9881;</span>Settings</button>
+    </nav>
+  </section>
+
+</div>
+
+<!-- ============ REST TIMER OVERLAY ============ -->
+<div id="rest-overlay" class="rest-overlay">
+  <div class="rest-overlay-inner">
+    <p class="eyebrow">Resting</p>
+    <p class="rest-exercise-name" id="rest-exercise-name">&mdash;</p>
+    <div class="rest-time" id="rest-time">2:00</div>
+    <div class="rest-bar-track"><div class="rest-bar-fill" id="rest-bar-fill"></div></div>
+    <div class="rest-actions">
+      <button id="btn-rest-minus" class="btn btn-ghost">&minus;15s</button>
+      <button id="btn-rest-skip" class="btn btn-primary">Skip</button>
+      <button id="btn-rest-plus" class="btn btn-ghost">+15s</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="program.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
