@@ -209,6 +209,12 @@ document.getElementById("btn-sign-out").addEventListener("click", async ()=>{
   }
 });
 
+document.getElementById("btn-sign-out-onboarding").addEventListener("click", async ()=>{
+  if(confirm("Sign out of Iron Log?")){
+    await signOutUser();
+  }
+});
+
 /* ============================================================
    ONBOARDING
    ============================================================ */

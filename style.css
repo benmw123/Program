@@ -91,6 +91,11 @@ input{font-family:inherit;}
 
 /* ---------- Onboarding ---------- */
 .onboard-wrap{padding:36px 20px 28px;}
+.onboard-topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;}
+.btn-link-inline{
+  background:none;border:none;color:var(--text-muted);font-size:12px;
+  text-decoration:underline;cursor:pointer;padding:4px 0;
+}
 .onboard-sub{color:var(--text-muted);font-size:14px;line-height:1.6;margin:0 0 24px;}
 .onboard-card{
   background:var(--bg-surface);
