@@ -288,3 +288,6 @@ function getWeekAdjustedTarget(exercise, week) {
     isDeload: false
   };
 }
+
+export { PROGRAM, EXERCISE_INDEX, MESOCYCLE_LENGTH, DELOAD_WEEK, getWeekAdjustedTarget };
+

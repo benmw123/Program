@@ -1,11 +1,18 @@
-const CACHE_NAME = "ironlog-cache-v1";
+const CACHE_NAME = "ironlog-cache-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
   "./program.js",
+  "./firebase-config.js",
+  "./firebase.js",
   "./manifest.json",
+  "./favicon.ico",
+  "./icons/favicon-16.png",
+  "./icons/favicon-32.png",
+  "./icons/favicon-48.png",
+  "./icons/apple-touch-icon.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-192.png",

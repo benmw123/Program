@@ -150,6 +150,43 @@ input{font-family:inherit;}
 .btn-danger{background:transparent;border:1px solid #6b2a2a;color:#ef6a6a;}
 .btn-sm{padding:8px 12px;font-size:13px;border-radius:var(--radius-sm);}
 
+/* ---------- Auth / Login ---------- */
+.auth-tabs{display:flex;gap:6px;background:var(--bg-elevated);border-radius:var(--radius-md);padding:4px;margin-bottom:18px;}
+.auth-tab{flex:1;background:none;border:none;color:var(--text-muted);font-family:var(--font-display);font-weight:600;font-size:13px;padding:10px 0;border-radius:var(--radius-sm);cursor:pointer;}
+.auth-tab.active{background:var(--accent);color:#1a0b06;}
+.field-label{display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;}
+.auth-input{
+  width:100%;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text-primary);font-family:var(--font-body);font-size:15px;padding:12px 14px;margin-bottom:14px;
+}
+.auth-error{color:#ef6a6a;font-size:12.5px;margin:-4px 0 10px;min-height:1px;}
+.btn-link{
+  background:none;border:none;color:var(--accent);font-size:12.5px;
+  display:block;width:100%;text-align:center;padding:10px 0 0;cursor:pointer;
+}
+.auth-divider{display:flex;align-items:center;text-align:center;color:var(--text-muted);font-size:11px;margin:18px 0 14px;}
+.auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:var(--border);}
+.auth-divider span{padding:0 10px;}
+
+/* ---------- Install banner ---------- */
+.install-banner{
+  display:none;
+  margin:0 20px 18px;
+  background:var(--bg-surface);
+  border:1px solid var(--accent-dim);
+  border-radius:var(--radius-lg);
+  padding:14px 16px;
+  align-items:center;justify-content:space-between;gap:10px;
+}
+.install-banner.show{display:flex;}
+.install-banner-title{font-weight:600;font-size:14px;margin:0;}
+.install-banner-sub{font-size:12px;color:var(--text-muted);margin:2px 0 0;}
+.install-banner-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.icon-btn-sm{
+  background:none;border:none;color:var(--text-muted);
+  width:28px;height:28px;font-size:13px;cursor:pointer;
+}
+
 /* ---------- Home ---------- */
 .meso-ring-card{
   margin:0 20px 18px;

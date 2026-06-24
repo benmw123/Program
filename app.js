@@ -1,16 +1,25 @@
 /* ============================================================
    IRON LOG — app logic
-   All state lives in localStorage so it persists offline and
-   across sessions once installed to the homescreen.
+   Permanent data (mesocycle position, working weights, finished
+   workout history) lives in Firestore, scoped to the signed-in
+   account, so it survives cleared cookies/storage and follows
+   you across devices. The in-progress (not yet finished) workout
+   is cached locally in localStorage purely so a refresh mid
+   -session doesn't lose what you've typed — it's written to
+   Firestore for good once you tap "Finish Workout".
    ============================================================ */
 
-const LS_STATE = "ironlog_state";
-const LS_HISTORY = "ironlog_history";
-const LS_ACTIVE = "ironlog_active";
+import { PROGRAM, MESOCYCLE_LENGTH, DELOAD_WEEK, getWeekAdjustedTarget } from "./program.js";
+import {
+  watchAuth, signUpWithEmail, signInWithEmail, signInWithGoogle, resolveRedirectResult,
+  resetPassword, signOutUser, fetchUserState, saveUserState, fetchHistory, addHistorySession
+} from "./firebase.js";
+import { ALLOWED_EMAIL } from "./firebase-config.js";
 
+const LS_ACTIVE = "ironlog_active";
 const DAY_ORDER = PROGRAM.days.map(d => d.id);
 
-/* ---------------- state helpers ---------------- */
+/* ---------------- in-memory data (hydrated from Firestore on login) ---------------- */
 
 function defaultState(){
   return {
@@ -19,26 +28,16 @@ function defaultState(){
     dayIndex: 0,
     daysCompletedThisWeek: 0,
     cycleNumber: 1,
-    weights: {}      // exerciseId -> current working weight (lbs)
+    weights: {}
   };
 }
 
-function loadState(){
-  try{
-    const raw = localStorage.getItem(LS_STATE);
-    if(!raw) return defaultState();
-    return { ...defaultState(), ...JSON.parse(raw) };
-  }catch(e){ return defaultState(); }
-}
-function saveState(s){ localStorage.setItem(LS_STATE, JSON.stringify(s)); }
-
-function loadHistory(){
-  try{
-    const raw = localStorage.getItem(LS_HISTORY);
-    return raw ? JSON.parse(raw) : [];
-  }catch(e){ return []; }
-}
-function saveHistory(h){ localStorage.setItem(LS_HISTORY, JSON.stringify(h)); }
+let currentUser = null;
+let state = defaultState();
+let history = [];
+let active = loadActive();
+let restTimerHandle = null;
+let deferredInstallPrompt = null;
 
 function loadActive(){
   try{
@@ -49,10 +48,14 @@ function loadActive(){
 function saveActive(a){ localStorage.setItem(LS_ACTIVE, JSON.stringify(a)); }
 function clearActive(){ localStorage.removeItem(LS_ACTIVE); }
 
-let state = loadState();
-let history = loadHistory();
-let active = loadActive();
-let restTimerHandle = null;
+async function persistState(){
+  if(!currentUser) return;
+  try{
+    await saveUserState(currentUser.uid, state);
+  }catch(e){
+    toast("Couldn't sync to the cloud — check your connection.");
+  }
+}
 
 /* ---------------- view routing ---------------- */
 
@@ -82,7 +85,7 @@ document.querySelectorAll(".nav-back").forEach(btn=>{
 /* ---------------- toast ---------------- */
 
 let toastTimeout = null;
-function toast(msg, ms=2600){
+function toast(msg, ms=2800){
   const t = document.getElementById("toast");
   t.textContent = msg;
   t.classList.add("show");
@@ -114,6 +117,99 @@ function weekLabel(week){
 }
 
 /* ============================================================
+   AUTH / LOGIN
+   ============================================================ */
+
+let authMode = "signin"; // or "signup"
+
+document.getElementById("tab-signin").addEventListener("click", ()=> setAuthMode("signin"));
+document.getElementById("tab-signup").addEventListener("click", ()=> setAuthMode("signup"));
+
+function setAuthMode(mode){
+  authMode = mode;
+  document.getElementById("tab-signin").classList.toggle("active", mode==="signin");
+  document.getElementById("tab-signup").classList.toggle("active", mode==="signup");
+  document.getElementById("btn-auth-submit").textContent = mode==="signin" ? "Sign In" : "Create Account";
+  document.getElementById("auth-error").textContent = "";
+}
+
+document.getElementById("btn-auth-submit").addEventListener("click", async ()=>{
+  const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const errEl = document.getElementById("auth-error");
+  errEl.textContent = "";
+  if(!email || !password){ errEl.textContent = "Enter an email and password."; return; }
+  if(password.length < 6){ errEl.textContent = "Password must be at least 6 characters."; return; }
+
+  setLoginLoading(true);
+  try{
+    if(authMode === "signin"){
+      await signInWithEmail(email, password);
+    } else {
+      await signUpWithEmail(email, password);
+    }
+    // onAuthStateChanged handles the rest
+  }catch(e){
+    errEl.textContent = friendlyAuthError(e);
+  }finally{
+    setLoginLoading(false);
+  }
+});
+
+document.getElementById("btn-forgot-password").addEventListener("click", async ()=>{
+  const email = document.getElementById("auth-email").value.trim();
+  const errEl = document.getElementById("auth-error");
+  if(!email){ errEl.textContent = "Enter your email above first."; return; }
+  try{
+    await resetPassword(email);
+    errEl.style.color = "var(--success)";
+    errEl.textContent = "Password reset email sent.";
+  }catch(e){
+    errEl.style.color = "";
+    errEl.textContent = friendlyAuthError(e);
+  }
+});
+
+document.getElementById("btn-google-signin").addEventListener("click", async ()=>{
+  const errEl = document.getElementById("auth-error");
+  errEl.textContent = "";
+  setLoginLoading(true);
+  try{
+    await signInWithGoogle();
+  }catch(e){
+    errEl.textContent = friendlyAuthError(e);
+  }finally{
+    setLoginLoading(false);
+  }
+});
+
+function setLoginLoading(isLoading){
+  document.getElementById("login-loading").style.display = isLoading ? "block" : "none";
+  document.getElementById("btn-auth-submit").disabled = isLoading;
+}
+
+function friendlyAuthError(e){
+  const code = e && e.code ? e.code : "";
+  const map = {
+    "auth/email-already-in-use": "That email already has an account — try Sign In instead.",
+    "auth/invalid-email": "That email address doesn't look right.",
+    "auth/user-not-found": "No account found with that email.",
+    "auth/wrong-password": "Incorrect password.",
+    "auth/invalid-credential": "Incorrect email or password.",
+    "auth/weak-password": "Password must be at least 6 characters.",
+    "auth/popup-closed-by-user": "Sign-in was closed before finishing.",
+    "auth/network-request-failed": "Network error — check your connection."
+  };
+  return map[code] || "Something went wrong. Please try again.";
+}
+
+document.getElementById("btn-sign-out").addEventListener("click", async ()=>{
+  if(confirm("Sign out of Iron Log?")){
+    await signOutUser();
+  }
+});
+
+/* ============================================================
    ONBOARDING
    ============================================================ */
 
@@ -140,14 +236,14 @@ function renderOnboardingList(){
   });
 }
 
-document.getElementById("btn-start-program").addEventListener("click", ()=>{
+document.getElementById("btn-start-program").addEventListener("click", async ()=>{
   const inputs = document.querySelectorAll("#onboard-exercise-list input");
   inputs.forEach(inp=>{
     const v = parseFloat(inp.value);
     if(!isNaN(v) && v >= 0) state.weights[inp.dataset.ex] = v;
   });
   state.onboarded = true;
-  saveState(state);
+  await persistState();
   showView("home");
   renderHome();
 });
@@ -164,7 +260,6 @@ function buildMesoRing(){
   const gapDeg = 6;
   const segDeg = (360 / segments) - gapDeg;
 
-  // background track
   const bgCircle = document.createElementNS("http://www.w3.org/2000/svg","circle");
   bgCircle.setAttribute("cx",cx); bgCircle.setAttribute("cy",cy); bgCircle.setAttribute("r",r);
   bgCircle.setAttribute("fill","none");
@@ -238,11 +333,9 @@ function renderHome(){
 
   const stats = document.getElementById("quick-stats");
   stats.innerHTML = "";
-  const totalWorkouts = history.length;
-  const thisWeekDone = state.daysCompletedThisWeek;
   const statData = [
-    [String(totalWorkouts), "Total Sessions"],
-    [`${thisWeekDone}/3`, "This Week"],
+    [String(history.length), "Total Sessions"],
+    [`${state.daysCompletedThisWeek}/3`, "This Week"],
     [`#${state.cycleNumber}`, "Mesocycle"]
   ];
   statData.forEach(([num,label])=>{
@@ -251,6 +344,8 @@ function renderHome(){
     box.innerHTML = `<span class="stat-num">${num}</span><span class="stat-label">${label}</span>`;
     stats.appendChild(box);
   });
+
+  updateInstallBannerVisibility();
 }
 
 document.getElementById("btn-open-settings").addEventListener("click", ()=>{
@@ -424,15 +519,13 @@ document.getElementById("btn-exit-workout").addEventListener("click", ()=>{
 
 document.getElementById("btn-finish-workout").addEventListener("click", finishWorkout);
 
-function finishWorkout(){
+async function finishWorkout(){
   const done = doneSetsInActive();
   if(done === 0){
     if(!confirm("No sets logged yet. Finish anyway?")) return;
   }
 
-  // persist to history
   const session = {
-    id: Date.now(),
     date: new Date().toISOString(),
     week: active.week,
     dayId: active.dayId,
@@ -447,10 +540,7 @@ function finishWorkout(){
       }))
     })).filter(ex=>ex.sets.length>0)
   };
-  history.push(session);
-  saveHistory(history);
 
-  // progressive overload: bump weight if every logged set hit the top of the rep range
   if(active.week !== DELOAD_WEEK){
     active.exercises.forEach(ex=>{
       const loggedSets = ex.sets.filter(s=>s.done && s.reps !== "");
@@ -459,15 +549,10 @@ function finishWorkout(){
       const isCompound = PROGRAM.days.flatMap(d=>d.exercises).find(e=>e.id===ex.id)?.type === "compound";
       const increment = isCompound ? 5 : 2.5;
       const currentWeight = Number(loggedSets[loggedSets.length-1].weight) || state.weights[ex.id] || 0;
-      if(hitTop){
-        state.weights[ex.id] = currentWeight + increment;
-      } else {
-        state.weights[ex.id] = currentWeight;
-      }
+      state.weights[ex.id] = hitTop ? currentWeight + increment : currentWeight;
     });
   }
 
-  // advance day/week pointers
   state.daysCompletedThisWeek += 1;
   state.dayIndex = (state.dayIndex + 1) % DAY_ORDER.length;
 
@@ -483,15 +568,28 @@ function finishWorkout(){
     }
   }
 
-  saveState(state);
-  clearActive();
-  active = null;
+  const finishBtn = document.getElementById("btn-finish-workout");
+  finishBtn.disabled = true;
+  finishBtn.textContent = "Saving…";
 
-  showView("home");
-  renderHome();
-  toast(mesoFinished
-    ? "Deload complete — new mesocycle started. Nudge up any lift that felt easy!"
-    : `Workout saved · ${done} set${done===1?"":"s"} logged`);
+  try{
+    await addHistorySession(currentUser.uid, session);
+    history.push(session);
+    await persistState();
+    clearActive();
+    active = null;
+
+    showView("home");
+    renderHome();
+    toast(mesoFinished
+      ? "Deload complete — new mesocycle started. Nudge up any lift that felt easy!"
+      : `Workout saved · ${done} set${done===1?"":"s"} logged`);
+  }catch(e){
+    toast("Couldn't save to the cloud — check your connection and try again.");
+  }finally{
+    finishBtn.disabled = false;
+    finishBtn.textContent = "Finish Workout";
+  }
 }
 
 /* ---------------- rest timer ---------------- */
@@ -615,7 +713,6 @@ function drawLineChart(canvas, values){
   const max = Math.max(...values);
   const range = (max - min) || 1;
 
-  // grid line
   ctx.strokeStyle = "#2A2C33";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -674,16 +771,19 @@ function renderHistorySessions(){
    ============================================================ */
 
 function renderSettings(){
+  document.getElementById("account-email").textContent =
+    currentUser && currentUser.email ? `Signed in as ${currentUser.email}` : "Signed in";
+
   const picker = document.getElementById("week-picker");
   picker.innerHTML = "";
   for(let w=1; w<=MESOCYCLE_LENGTH; w++){
     const chip = document.createElement("button");
     chip.className = "week-chip" + (w===state.week ? " active":"") + (w===DELOAD_WEEK ? " deload-chip":"");
     chip.textContent = w;
-    chip.addEventListener("click", ()=>{
+    chip.addEventListener("click", async ()=>{
       state.week = w;
       state.daysCompletedThisWeek = 0;
-      saveState(state);
+      await persistState();
       renderSettings();
       toast(`Jumped to week ${w}`);
     });
@@ -704,36 +804,104 @@ function renderSettings(){
       <input type="number" inputmode="decimal" step="2.5" placeholder="lbs" value="${current!==undefined?current:''}" data-ex="${ex.id}" />
     `;
     const inp = row.querySelector("input");
-    inp.addEventListener("change", ()=>{
+    inp.addEventListener("change", async ()=>{
       const v = parseFloat(inp.value);
-      if(!isNaN(v) && v>=0){ state.weights[ex.id] = v; saveState(state); toast("Weight updated"); }
+      if(!isNaN(v) && v>=0){
+        state.weights[ex.id] = v;
+        await persistState();
+        toast("Weight updated");
+      }
     });
     list.appendChild(row);
   });
+
+  updateInstallButtonVisibility();
 }
 
-document.getElementById("btn-reset-all").addEventListener("click", ()=>{
-  if(confirm("This will permanently erase all logged history and weights. Continue?")){
-    localStorage.removeItem(LS_STATE);
-    localStorage.removeItem(LS_HISTORY);
-    localStorage.removeItem(LS_ACTIVE);
+document.getElementById("btn-reset-all").addEventListener("click", async ()=>{
+  if(confirm("This will permanently erase all logged history and weights from your account. Continue?")){
     state = defaultState();
     history = [];
     active = null;
+    clearActive();
+    await persistState();
     showView("onboarding");
     renderOnboardingList();
   }
 });
 
 /* ============================================================
-   INIT
+   INSTALL PROMPT (Add to Home Screen)
    ============================================================ */
 
-function init(){
-  if("serviceWorker" in navigator){
-    window.addEventListener("load", ()=>{
-      navigator.serviceWorker.register("service-worker.js").catch(()=>{});
-    });
+window.addEventListener("beforeinstallprompt", (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  updateInstallBannerVisibility();
+  updateInstallButtonVisibility();
+});
+
+window.addEventListener("appinstalled", ()=>{
+  deferredInstallPrompt = null;
+  document.getElementById("install-banner").classList.remove("show");
+  updateInstallButtonVisibility();
+  toast("Installed — find Iron Log on your homescreen.");
+});
+
+function updateInstallBannerVisibility(){
+  const banner = document.getElementById("install-banner");
+  if(!banner) return;
+  const dismissed = sessionStorage.getItem("ironlog_install_dismissed");
+  banner.classList.toggle("show", !!deferredInstallPrompt && !dismissed);
+}
+function updateInstallButtonVisibility(){
+  const btn = document.getElementById("btn-install-app-settings");
+  if(btn) btn.style.display = deferredInstallPrompt ? "block" : "none";
+}
+
+async function triggerInstall(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  document.getElementById("install-banner").classList.remove("show");
+  updateInstallButtonVisibility();
+}
+
+document.getElementById("btn-install-app").addEventListener("click", triggerInstall);
+document.getElementById("btn-install-app-settings").addEventListener("click", triggerInstall);
+document.getElementById("btn-install-dismiss").addEventListener("click", ()=>{
+  sessionStorage.setItem("ironlog_install_dismissed","1");
+  document.getElementById("install-banner").classList.remove("show");
+});
+
+/* ============================================================
+   AUTH STATE → APP BOOT
+   ============================================================ */
+
+async function handleSignedIn(user){
+  const userEmail = (user.email || "").toLowerCase().trim();
+  const allowed = ALLOWED_EMAIL.toLowerCase().trim();
+  if(userEmail !== allowed){
+    await signOutUser().catch(()=>{});
+    document.getElementById("auth-error").textContent =
+      "This app is private and restricted to one account. Signed out.";
+    showView("login");
+    return;
+  }
+
+  currentUser = user;
+  try{
+    const [remoteState, remoteHistory] = await Promise.all([
+      fetchUserState(user.uid),
+      fetchHistory(user.uid)
+    ]);
+    state = remoteState ? { ...defaultState(), ...remoteState } : defaultState();
+    history = remoteHistory || [];
+  }catch(e){
+    toast("Couldn't load your data — check your connection.");
+    state = defaultState();
+    history = [];
   }
 
   if(!state.onboarded){
@@ -743,13 +911,39 @@ function init(){
   }
 
   if(active){
-    const day = PROGRAM.days.find(d=>d.id===active.dayId);
     showView("workout");
     renderWorkout();
   } else {
     showView("home");
     renderHome();
   }
+}
+
+function handleSignedOut(){
+  currentUser = null;
+  state = defaultState();
+  history = [];
+  active = null;
+  clearActive();
+  document.getElementById("auth-email").value = "";
+  document.getElementById("auth-password").value = "";
+  document.getElementById("auth-error").textContent = "";
+  showView("login");
+}
+
+async function init(){
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", ()=>{
+      navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+    });
+  }
+
+  await resolveRedirectResult().catch(()=>{});
+
+  watchAuth((user)=>{
+    if(user) handleSignedIn(user);
+    else handleSignedOut();
+  });
 }
 
 init();

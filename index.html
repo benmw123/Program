@@ -6,8 +6,12 @@
 <title>Iron Log &mdash; PPL Tracker</title>
 <meta name="description" content="A 3-day Push/Pull/Legs tracker built on progressive overload, RIR, and deload cycles." />
 <meta name="theme-color" content="#0E0F12" />
+<link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png" />
 <link rel="manifest" href="manifest.json" />
-<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Iron Log" />
@@ -19,6 +23,37 @@
 <body>
 
 <div id="app">
+
+  <!-- ============ LOGIN ============ -->
+  <section id="view-login" class="view">
+    <div class="onboard-wrap">
+      <p class="eyebrow">Welcome</p>
+      <h1 class="display-xl">IRON LOG</h1>
+      <p class="onboard-sub">Sign in to sync your training to the cloud — your history and progress travel with your account, not just this browser.</p>
+
+      <div class="onboard-card">
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-signin" data-mode="signin">Sign In</button>
+          <button class="auth-tab" id="tab-signup" data-mode="signup">Create Account</button>
+        </div>
+
+        <label class="field-label">Email</label>
+        <input type="email" id="auth-email" class="auth-input" placeholder="you@example.com" autocomplete="email" />
+        <label class="field-label">Password</label>
+        <input type="password" id="auth-password" class="auth-input" placeholder="At least 6 characters" autocomplete="current-password" />
+
+        <p class="auth-error" id="auth-error"></p>
+
+        <button id="btn-auth-submit" class="btn btn-primary btn-block">Sign In</button>
+        <button id="btn-forgot-password" class="btn-link">Forgot password?</button>
+
+        <div class="auth-divider"><span>or</span></div>
+
+        <button id="btn-google-signin" class="btn btn-ghost btn-block">Continue with Google</button>
+      </div>
+      <p class="hint" id="login-loading" style="display:none;text-align:center;">Connecting…</p>
+    </div>
+  </section>
 
   <!-- ============ ONBOARDING ============ -->
   <section id="view-onboarding" class="view">
@@ -46,6 +81,17 @@
       </div>
       <button id="btn-open-settings" class="icon-btn" aria-label="Settings">&#9881;</button>
     </header>
+
+    <div id="install-banner" class="install-banner">
+      <div>
+        <p class="install-banner-title">Install Iron Log</p>
+        <p class="install-banner-sub">Add it to your homescreen for full-screen, offline access.</p>
+      </div>
+      <div class="install-banner-actions">
+        <button id="btn-install-dismiss" class="icon-btn-sm" aria-label="Dismiss">&#10005;</button>
+        <button id="btn-install-app" class="btn btn-primary btn-sm">Install</button>
+      </div>
+    </div>
 
     <div class="meso-ring-card">
       <div class="meso-ring" id="meso-ring">
@@ -171,6 +217,13 @@
     </header>
 
     <div class="settings-card">
+      <h2 class="section-title">Account</h2>
+      <p class="hint" id="account-email">Signed in</p>
+      <button id="btn-install-app-settings" class="btn btn-ghost btn-block" style="margin-bottom:10px;display:none;">Install app to homescreen</button>
+      <button id="btn-sign-out" class="btn btn-ghost btn-block">Sign out</button>
+    </div>
+
+    <div class="settings-card">
       <h2 class="section-title">Mesocycle position</h2>
       <p class="hint">Jump to a different week if you need to correct the tracker.</p>
       <div class="week-picker" id="week-picker"></div>
@@ -215,7 +268,6 @@
 
 <div id="toast" class="toast"></div>
 
-<script src="program.js"></script>
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

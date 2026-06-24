@@ -1,14 +1,17 @@
 {
+  "id": "/",
   "name": "Iron Log — PPL Tracker",
   "short_name": "Iron Log",
   "description": "A 3-day Push/Pull/Legs tracker built on progressive overload, RIR, and deload cycles.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#0E0F12",
   "theme_color": "#0E0F12",
   "icons": [
+    { "src": "icons/favicon-48.png", "sizes": "48x48", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
